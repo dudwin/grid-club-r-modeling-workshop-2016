@@ -22,6 +22,12 @@ output:
 & Western Mass Statistics and Data Science Meetup
 </center>
 
+## Follow Along
+
+<center>
+http://tinyurl.com/j3vqd5z
+</center>
+
 ## Introduction
 <style type="text/css">
 p { text-align: left; }
