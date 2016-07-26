@@ -1,0 +1,594 @@
+---
+title: "Modeling and Inference in R"
+author: "Deirdre Fitzpatrick & Dana Udwin"
+date: "July 26, 2016"
+output:
+  revealjs::revealjs_presentation:
+    incremental: true
+    theme: moon
+---
+
+## Sponsors
+
+<center>
+<img src="images/grid-logo.png" style="width: 400px;"/>  
+</center>  
+
+<center>  
+<img src="images/gwis-logo.png" style="width: 400px;"/>  
+</center>  
+  
+<center>  
+& Western Mass Statistics and Data Science Meetup
+</center>
+
+## Introduction
+<style type="text/css">
+p { text-align: left; }
+</style>
+Modeling in R consists of:
+
+* formula object
+    + `Sepal.Length ~ Sepal.Width`
+    + Use `Sepal.Width` to predict `Sepal.Length`
+
+* model object
+    + `lm()`
+    + Put your formula inside of `lm()`
+
+* observing your model
+    + `anova()`, `plot()` or `summary()`
+    + Put your model inside of `plot()`
+
+## Simple Linear Regression (SLR)
+
+* Linear relationship between variables
+    + i.e. as `Sepal.Width` increases, we think `Sepal.Length` does, too (in a nice straight line)
+
+* Response variable is continuous
+    + `Sepal.Length` is numeric (not categories like "short" or "long")
+   
+* "Simple" = only one explanatory variable
+
+## Preview the Data
+
+```{r}
+# ?swiss
+head(swiss)
+```
+
+## Eyeball the Data
+
+```{r fig.width=5, fig.height=5, fig.align='center'}
+plot(swiss)
+```
+
+## Fit the SLR Model
+
+```{r}
+mdl <- lm(Agriculture ~ Examination, data=swiss)
+```
+
+* response or dependent variable = Agriculture
+    + the thing we want to predict
+    
+* explanatory or independent variable = Examination
+
+## Summarize Model
+
+<font size="6">
+```{r}
+summary(mdl)
+```
+</font>
+
+Agriculture = `r coefficients(mdl)[[1]]` - `r abs(coefficients(mdl)[[2]])` Examination + $\epsilon$
+
+(You get lots of asterisks next to significant variables.)
+
+## Analysis of Variance
+
+```{r fig.width=5, fig.height=5}
+anova(mdl)
+```
+
+## Check Out Residuals
+
+```{r fig.width=5, fig.height=5, fig.align='center'}
+par(mfrow=c(2,2))
+plot(mdl)
+```
+
+```{r echo=FALSE}
+par(mfrow=c(1,1))
+```
+
+## Or, Try It Without an Intercept!
+
+```{r}
+mdl <- lm(Agriculture ~ Examination - 1, data=swiss)
+mdl <- lm(Agriculture ~ Examination + 0, data=swiss)
+
+summary(mdl)
+```
+
+## Rewind
+
+What even is an `lm()`?
+
+<center>
+<img src="images/futurama.jpg" style="width: 400px;"/>
+</center>
+
+## About the Model Object
+
+```{r}
+names(mdl)
+mdl['coefficients']
+```
+
+## And Plays Well with Others
+
+```{r}
+# sample 5 numbers from the uniform distribution (0, 100)
+fake_data <- data.frame(Examination = runif(5, 0, 100))
+
+predict(mdl, newdata=fake_data, interval="confidence")
+```
+
+## More Nice Playing
+
+<font size="6">
+```{r}
+r <- residuals(mdl)
+head(r)
+
+coef(mdl)
+
+f <- fitted(mdl)
+head(f)
+```
+</font>
+
+## Working Example
+
+```{r message=FALSE}
+# install.packages('ggplot2')
+require(ggplot2)
+
+head(diamonds)
+```
+
+## Lines of Inquiry
+
+* Use `lm()` to model price as a function of carat.
+
+* Find the coefficients. (Are they significant?)
+
+* Use your model with `predict()` to predict the price of diamonds with 0.5, 2 and 0.73 carats, respectively.
+
+```{r}
+# hint, use this fresh dataframe
+# with the newdata argument inside of predict()
+fresh_diamonds <- data.frame(carat = c(0.5, 2, 0.73))
+```
+
+Type `?lm` or `?predict` in your console for more info!
+
+## One Way to Answer
+
+<font size="6">
+```{r}
+mdl <- lm(price ~ carat, data=diamonds)
+
+summary(mdl)
+
+fresh_diamonds <- data.frame(carat = c(0.5, 2, 0.73))
+predict(mdl, newdata=fresh_diamonds)
+```
+</font>
+
+## Multiple Linear Regression
+
+* Response variable is still continuous
+* Two or more independent explanatory variables
+* Let's model fertility using Catholic and Education as predictors
+
+## Check Independence Between Predictors
+
+```{r fig.width=4, fig.height=4, fig.align='center'}
+# library(ggplot2)
+ggplot(swiss, aes(x = Catholic, y = Education)) + geom_point()
+```
+
+## Cover Ass Better
+
+```{r}
+cor(swiss$Catholic, swiss$Education)
+```
+
+## Fit Model
+
+```{r}
+mdl <- lm(Fertility ~ Catholic + Education, data=swiss)
+summary(mdl)
+```
+
+## Partial F-Test
+
+Let's suppose a new model!
+
+Fertility = $\beta_0$ + $\beta_1$ Education + $\beta_2$ Catholic + $\beta_3$ Infant.Mortality + $\epsilon$
+
+Test hypothesis that $\beta_2 = \beta_3 = 0$.
+
+## Partial F-Test
+
+```{r}
+reduced_mdl <- lm(Fertility ~ Education, data=swiss)
+full_mdl <- lm(Fertility ~ Education + Catholic + Infant.Mortality, data=swiss)
+
+# you can pass in two models!
+anova(reduced_mdl, full_mdl)
+```
+
+Teeny-tiny p-value (look at all those asterisks) tells us $\beta_2$ and $\beta_3$ are not both zero, i.e. adding those variables was handy!
+
+## Diversion...Get More Succinct!
+
+What's in an `anova()` ?
+
+```{r}
+anova_magic <- anova(reduced_mdl, full_mdl)
+
+class(anova_magic)
+names(anova_magic)
+anova_magic[["Pr(>F)"]]
+```
+
+## Multiple Linear Regression...with interaction!
+
+Let's revise the additive model we fit earlier (Fertility = $\beta_0$ + $\beta_1$ Catholic + $\beta_2$ Education + $\epsilon$).
+
+We're curious:
+
+As Education changes, does the effect of Catholic on Fertility change?
+
+As Catholic changes, does the effect of Education on Fertility change?
+
+## Fit the Model with Interaction Term
+
+Fertility = $\beta_0$ + $\beta_1$ Catholic + $\beta_2$ Education + $\beta_3$ Catholic*Education + $\epsilon$
+
+```{r}
+mdl <- lm(Fertility ~ Catholic + Education + Catholic*Education, data=swiss) # yay
+mdl <- lm(Fertility ~ Catholic + Education + Catholic:Education, data=swiss) # yay
+mdl <- lm(Fertility ~ Catholic*Education, data=swiss) # yay
+# mdl <- lm(Fertility ~ Catholic:Education, data=swiss) <-- NO, includes no additive terms
+```
+
+## Summarize Model
+
+```{r}
+summary(mdl)
+```
+
+## Looks Shoddy...Let's Explore Further
+
+Recall our plot from earlier:
+
+```{r fig.width=4, fig.height=4, fig.align='center'}
+ggplot(swiss, aes(x = Catholic, y = Education)) + geom_point()
+```
+
+Looks like Catholic is either very small or very big.
+
+## A Little Manipulation
+
+Let's recode Catholic as a factor and see what happens.
+
+<font size="5">
+```{r message=FALSE}
+Catholic_median <- summary(swiss$Catholic)[["Median"]]
+
+# install.packages('dplyr')
+# install.packages('mosaic')
+library(dplyr)
+library(mosaic)
+
+swiss_new <- swiss %>% mutate(
+  Catholic_factor = derivedFactor(low = Catholic <= Catholic_median, 
+                           high = Catholic > Catholic_median))
+
+head(swiss_new[c('Catholic', 'Catholic_factor')])
+```
+</font>
+
+## Fit the New Model with Interaction
+
+```{r}
+mdl <- lm(Fertility ~ Catholic_factor*Education, data=swiss_new)
+summary(mdl)
+```
+
+## Working Example
+
+```{r}
+# require(ggplot2)
+
+head(diamonds)
+```
+
+* Fit a model to predict price using carat and another variable of your choosing.
+
+* Now add an interaction term between carat and your other variable of choice!
+
+## How We Did
+
+```{r}
+# ?diamonds
+
+mdl1 <- lm(price ~ carat + x, data=diamonds)
+
+mdl2 <- lm(price ~ carat*x, data=diamonds)
+
+# anova(mdl1, mdl2)
+# summary(mdl1)
+# summary(mdl2)
+```
+
+## Logistic Regression
+
+* Response variable is categorical
+* But we are still considering a linear relationship!
+
+## Logistic Regression
+
+You can't have a linear relationship between, say, age and gender.
+
+But you can have a linear relationship between age and the log odds that someone is female.
+
+Enter logit function:
+
+$$
+\begin{equation}
+\log \frac{p}{1-p} = \beta_0 + \beta_1 X_1 + \dots + \beta_n X_n
+\end{equation}
+$$
+
+$p$ = probability of "success"
+
+$\log$$\frac{p}{1-p}$ = "log odds"
+
+## The Data
+
+```{r}
+# ?UCBAdmissions
+df <- as.data.frame(UCBAdmissions)
+head(df)
+```
+
+$p$ = probability of being admitted
+
+$X_1$ = Gender
+
+$X_2$ = Dept
+
+## A Little Finagling
+
+```{r message=FALSE}
+# install.packages('reshape')
+require(reshape)
+
+# unravel
+df <- untable(df[, c('Admit', 'Gender', 'Dept')], num=df[, 'Freq'])
+rownames(df) <- seq(length=nrow(df))
+
+# re-order levels of Admit
+df <- mutate(df, Admit = relevel(Admit, 'Rejected'))
+
+head(df) # 4526 rows now
+```
+
+## Training
+
+Subset the data into training set (fit model) and testing set (test model).
+
+```{r}
+df_idx <- 1:nrow(df)
+train_size <- floor(.8 * nrow(df))
+
+train_idx <- sample(df_idx, size=train_size)
+test_idx <- df_idx[!(df_idx %in% train_idx)]
+
+train_df <- df[train_idx, ]
+test_df <- df[test_idx, ]
+```
+
+## Fit the Model
+
+`glm()` function (generalized linear model)
+
+```{r}
+mdl <- glm(Admit ~ Gender, family=binomial(link='logit'), data=train_df)
+
+summary(mdl)
+```
+
+## Interpret Coefficients
+
+Recall: The model fits $\log \frac{p}{1-p} = \beta_0 + \beta_1 X_1$.
+
+$\beta_0$ = `r coef(mdl)[1]`
+
+$\beta_1$ = `r coef(mdl)[2]`
+
+```{r}
+coef(mdl)
+```
+
+When applicant is male, $X_1$ = 0 and the log odds of admission are equal to the intercept.
+
+We expect the log odds of admission to increase by `r coef(mdl)[2]` when applicant is female.
+
+## Multiple Logistic Regression
+
+<font size="6">
+```{r}
+# pro tip: a period includes all variables as predictors
+mdl <- glm(Admit ~ ., family=binomial(link='logit'), data=train_df)
+
+summary(mdl)
+```
+</font>
+
+Simpson's Paradox!
+
+## Receiver Operating Characteristic Curve
+
+a.k.a the illustrious ROC Curve
+
+<font size="5">
+```{r fig.height=4, fig.width=4, fig.align='center', message=FALSE}
+#install.packages('ROCR')
+library(ROCR)
+
+prob_admit <- predict(mdl, newdata=test_df, type="response")
+truth_admit <- test_df$Admit
+pred <- prediction(prob_admit, truth_admit, label.ordering=c('Rejected', 'Admitted'))
+perf <- performance(pred, "tpr", "fpr")
+plot(perf)
+```
+</font>
+
+### Area Under the Curve (AUC)
+
+<font size="5">
+```{r}
+auc.tmp <- performance(pred, "auc")
+auc <- as.numeric(auc.tmp@y.values)
+auc
+```
+</font>
+
+## Working Example
+
+Run me:
+
+```{r}
+diamonds_new <- diamonds %>% 
+      mutate(bling = derivedFactor(no = price <= 5000, 
+          yes = price > 5000))
+```
+
+Use `glm()` with the `diamonds_new` data you just defined to fit a logistic regression where:
+
+* we are predicting the probability of bling
+* using predictor depth
+
+## Our Approach
+
+```{r}
+mdl <- glm(bling ~ depth, family=binomial(link='logit'), data=diamonds_new)
+summary(mdl)
+```
+
+## Clustering
+
+This is a classification task that seeks to group items in a way that:
+
+1. Minimizes variance within groups
+
+2. Maximizes distance between groups
+
+Here, we will use the `kmeans()` function to implement k-means clustering. This is an unsupervised (a.k.a. the model doesn't learn from ground truth labels) clustering algorithm that identifies $k$ group "centers" and assigns each data point to the group with the nearest centroid.
+
+## Data
+
+```{r}
+# I'm sorry
+head(iris)
+```
+
+Do a little scrubbing.
+```{r}
+df <- iris[, c('Sepal.Length', 'Sepal.Width', 'Petal.Length', 'Petal.Width')]
+df <- na.omit(df)
+df <- scale(df)
+```
+
+## Determine Number of Clusters
+
+Elbow Method: Identify the number of clusters at which the sums of squared errors within groups drops.
+
+<center>
+```{r fig.align='center'}
+set.seed(1)
+col_variance <- apply(df, 2, var)
+
+# sum squared error for only 1 group
+weighted_ss <- (nrow(df)-1)*sum(col_variance)
+
+for (i in 2:15) {
+  within_cluster_ss <- kmeans(df, centers=i)$withinss
+  weighted_ss[i] <- sum(within_cluster_ss)
+}
+```
+</center>
+
+## Voila, Elbow
+
+```{r fig.align='center', fig.height=4, fig.width=4}
+plot(1:15, weighted_ss, pch=20, type="b", xlab="Number of Clusters", ylab="Within Group SSE")
+```
+
+## Implement K-Means
+
+```{r}
+fit <- kmeans(df, centers=3)
+
+aggregate(df, by=list(fit$cluster), FUN=mean)
+```
+
+## How Did We Do?
+
+We implemented unsupervised clustering, but...the iris data set has a species column. Let's consider that ground truth for our clusters and compare with the k-means results.
+
+```{r warnings=FALSE, message=FALSE}
+df <- data.frame(df, Fit=fit$cluster)
+df$Fit <- as.factor(df$Fit)
+df["Species"] <- iris$Species
+
+tbl <- table(df$Fit, df$Species)
+print(tbl)
+```
+
+## Confusion Matrix
+
+```{r message=FALSE, warning=FALSE}
+# install.packages('dplyr')
+# install.packages('plyr')
+# require(dplyr)
+require(plyr)
+df <- df %>% mutate(Fit = revalue(Fit, 
+        c('1' = 'setosa', '2' = 'virginica', '3' = 'versicolor')))
+
+#install.packages('caret')
+#install.packages('e1071')
+require(caret)
+require(e1071)
+
+confusionMatrix(df$Fit, df$Species)
+```
+
+## Thanks!
+
+deirdrefitzpatrick@massmutual.com
+
+dudwin@massmutual.com
+
+<center>
+<img src="images/mass-mutual-logo.png" style="width: 400px;"/>
+</center>
+
+(chat with us about MassMutual Data Labs + our data science development program located in Amherst)
