@@ -203,7 +203,6 @@ predict(mdl, newdata=fresh_diamonds)
 ## Check Independence Between Predictors
 
 ```{r fig.width=4, fig.height=4, fig.align='center'}
-# library(ggplot2)
 ggplot(swiss, aes(x = Catholic, y = Education)) + geom_point()
 ```
 
@@ -320,8 +319,6 @@ summary(mdl)
 ## Working Example
 
 ```{r}
-# require(ggplot2)
-
 head(diamonds)
 ```
 
@@ -572,10 +569,9 @@ print(tbl)
 ## Confusion Matrix
 
 ```{r message=FALSE, warning=FALSE}
-# install.packages('dplyr')
 # install.packages('plyr')
-# require(dplyr)
 require(plyr)
+
 df <- df %>% mutate(Fit = revalue(Fit, 
         c('1' = 'setosa', '2' = 'virginica', '3' = 'versicolor')))
 
